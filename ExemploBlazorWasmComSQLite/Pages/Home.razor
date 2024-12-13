@@ -1,0 +1,119 @@
+﻿@inject IProdutoRepository Repository
+@inject IJSRuntime Js
+
+@page "/"
+
+<PageTitle>Produtos</PageTitle>
+
+<MudPaper Class="my-4 pa-4">
+    <MudText Typo="Typo.h4">Cadastrar Produtos</MudText>
+</MudPaper>
+
+<form @onsubmit=SalvarAsync>
+    <MudCard Class="my-4">
+        <MudCardContent>
+            <MudTextField @ref=MudTextFieldDescricao Label="Descrição" @bind-Value=descricao />
+            <MudNumericField Class="mt-3" Label="Saldo em Estoque" @bind-Value=saldoEstoque />
+        </MudCardContent>
+        <MudCardActions Class="d-flex justify-end">
+            <MudButton ButtonType="ButtonType.Button" OnClick="Resetar" Variant="Variant.Filled" Size="Size.Small" StartIcon="@Icons.Material.Filled.ClearAll" Class="mx-2">
+                Cancelar
+            </MudButton>
+            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" StartIcon="@Icons.Material.Filled.Save" Class="mx-2">
+                Salvar
+            </MudButton>
+        </MudCardActions>
+    </MudCard>
+</form>
+
+<MudButton OnClick="DownloadBackup" Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Download" Class="my-2">
+    Download Database
+</MudButton>
+
+<MudDataGrid Class="my-4 mt-6" Items="produtos" Filterable="false" SortMode="SortMode.None">
+    <Columns>
+        <PropertyColumn Property="x => x.Id" />
+        <PropertyColumn Property="x => x.Descricao" Title="Descrição" />
+        <PropertyColumn Property="x => x.DataCadastro" Title="Cadastrado" Format="dd/MM/yyyy HH:mm:ss" />
+        <PropertyColumn Property="x => x.SaldoEstoque" Title="Saldo Estoque" Format="N2" />
+        <TemplateColumn Title="Ativo">
+            <CellTemplate>
+                @(context.Item.Ativo ? "Sim" : "Não")
+            </CellTemplate>
+        </TemplateColumn>
+        <TemplateColumn CellClass="d-flex justify-end">
+            <CellTemplate>
+                <MudIconButton Size="Size.Small" Icon="@Icons.Material.Filled.Edit" Class="mx-1" OnClick="() => IniciarEdicao(context.Item)" />
+                <MudIconButton Size="Size.Small" Icon="@Icons.Material.Filled.Delete" Class="mx-1" OnClick="() => AtivarInativar(context.Item)" />
+            </CellTemplate>
+        </TemplateColumn>
+    </Columns>
+</MudDataGrid>
+
+@code {
+    private MudTextField<string?> MudTextFieldDescricao = null!;
+
+    private int? id;
+    private string? descricao;
+    private decimal? saldoEstoque;
+
+    private Produto[] produtos = Array.Empty<Produto>();
+
+    protected async override Task OnInitializedAsync()
+    {
+        await AtualizarLista();
+
+        await MudTextFieldDescricao.FocusAsync();
+    }
+
+    private async void SalvarAsync()
+    {
+        if (string.IsNullOrEmpty(descricao))
+            return;
+
+        if (saldoEstoque is null)
+            saldoEstoque = decimal.Zero;
+
+        if (id is null)
+            await Repository.AddProdutoAsync(descricao, saldoEstoque.Value);
+        else
+            await Repository.EditProdutoAsync(id.Value, descricao, saldoEstoque.Value);
+
+        await AtualizarLista();
+
+        await Resetar();
+
+        StateHasChanged();
+    }
+
+    private async void AtivarInativar(Produto produto) =>
+        produto.Ativo = await Repository.ActivateInativate(produto.Id);
+
+    private async Task Resetar()
+    {
+        id = null;
+        descricao = null;
+        saldoEstoque = null;
+
+        await MudTextFieldDescricao.FocusAsync();
+    }
+
+    private async Task IniciarEdicao(Produto produto)
+    {
+        id = produto.Id;
+        descricao = produto.Descricao;
+        saldoEstoque = produto.SaldoEstoque;
+
+        await MudTextFieldDescricao.FocusAsync();
+    }
+
+    private async Task AtualizarLista() => produtos = await Repository.GetProdutosAsync();
+
+    private async Task DownloadBackup()
+    {
+        var result = await Js.InvokeAsync<int>(
+            "db.downloadDbInCache", "databaseapp.sqlite3_bak");
+        var resultText = result == -1 ? "Failure" : (result == 0 ? "Downloaded" : "Cached");
+        Console.WriteLine($"Synchronization status: {resultText}");
+    }
+}

@@ -1,0 +1,21 @@
+﻿@inherits LayoutComponentBase
+
+<MudThemeProvider />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar>
+        <MudText Typo="Typo.h5">
+            Exemplo SQLite Com Persistência
+        </MudText>
+    </MudAppBar>
+    
+    <MudMainContent>
+        <MudContainer Class="py-4">
+            @Body
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
